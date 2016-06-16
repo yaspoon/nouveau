@@ -21,7 +21,7 @@
  *
  * Authors: Ben Skeggs
  */
-#include "priv.h"
+#include "nv50.h"
 
 #include <core/gpuobj.h>
 #include <subdev/fb.h>
@@ -209,8 +209,15 @@ nv50_vm_create(struct nvkm_mmu *mmu, u64 offset, u64 length, u64 mm_offset,
 	return nvkm_vm_create(mmu, offset, length, mm_offset, block, key, pvm);
 }
 
+static void *
+nv50_mmu_dtor(struct nvkm_mmu *base)
+{
+	return nv50_mmu(base);
+}
+
 static const struct nvkm_mmu_func
-nv50_mmu = {
+nv50_mmu_ = {
+	.dtor = nv50_mmu_dtor,
 	.limit = (1ULL << 40),
 	.dma_bits = 40,
 	.pgt_bits  = 29 - 12,
@@ -225,7 +232,26 @@ nv50_mmu = {
 };
 
 int
+nv50_mmu_new_(const struct nv50_mmu_func *func, struct nvkm_device *device,
+	      int index, struct nvkm_mmu **pmmu)
+{
+	struct nv50_mmu *mmu;
+
+	if (!(mmu = kzalloc(sizeof(*mmu), GFP_KERNEL)))
+		return -ENOMEM;
+	mmu->func = func;
+	*pmmu = &mmu->base;
+
+	nvkm_mmu_ctor(&nv50_mmu_, device, index, &mmu->base);
+	return 0;
+}
+
+static const struct nv50_mmu_func
+nv50_mmu = {
+};
+
+int
 nv50_mmu_new(struct nvkm_device *device, int index, struct nvkm_mmu **pmmu)
 {
-	return nvkm_mmu_new_(&nv50_mmu, device, index, pmmu);
+	return nv50_mmu_new_(&nv50_mmu, device, index, pmmu);
 }
