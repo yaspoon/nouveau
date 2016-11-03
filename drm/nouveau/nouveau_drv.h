@@ -105,6 +105,8 @@ nouveau_cli(struct drm_file *fpriv)
 
 extern int nouveau_runtime_pm;
 
+#include <linux/notifier.h>
+
 struct nouveau_drm {
 	struct nouveau_cli client;
 	struct drm_device *dev;
@@ -161,6 +163,7 @@ struct nouveau_drm {
 	struct nvbios vbios;
 	struct nouveau_display *display;
 	struct backlight_device *backlight;
+	struct notifier_block acpi_nb;
 
 	/* power management */
 	struct nouveau_hwmon *hwmon;

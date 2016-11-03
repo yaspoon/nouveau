@@ -348,6 +348,23 @@ static struct nouveau_drm_prop_enum_list dither_depth[] = {
 	}                                                                      \
 } while(0)
 
+#include <acpi/video.h>
+
+static int
+nouveau_display_acpi_ntfy(struct notifier_block *nb, unsigned long val,
+			 void *data)
+{
+	struct nouveau_drm *drm = container_of(nb, typeof(*drm), acpi_nb);
+	struct acpi_bus_event *info = data;
+
+	if (!strcmp(info->device_class, ACPI_VIDEO_CLASS)) {
+		if (info->type == 0x81)
+			return NOTIFY_BAD;
+	}
+
+	return NOTIFY_DONE;
+}
+
 int
 nouveau_display_init(struct drm_device *dev)
 {
@@ -532,6 +549,8 @@ nouveau_display_create(struct drm_device *dev)
 	}
 
 	nouveau_backlight_init(dev);
+	drm->acpi_nb.notifier_call = nouveau_display_acpi_ntfy;
+	register_acpi_notifier(&drm->acpi_nb);
 	return 0;
 
 vblank_err:
@@ -547,6 +566,7 @@ nouveau_display_destroy(struct drm_device *dev)
 {
 	struct nouveau_display *disp = nouveau_display(dev);
 
+	unregister_acpi_notifier(&nouveau_drm(dev)->acpi_nb);
 	nouveau_backlight_exit(dev);
 	nouveau_display_vblank_fini(dev);
 
