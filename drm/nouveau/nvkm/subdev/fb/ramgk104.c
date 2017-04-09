@@ -122,12 +122,10 @@ struct gk104_ram {
 	struct nvkm_ram base;
 	struct gk104_ramfuc fuc;
 
-	struct list_head cfg;
 	u32 parts;
 	u32 pmask;
 	u32 pnuts;
 
-	struct nvbios_ramcfg diff;
 	int from;
 	int mode;
 	int N1, fN1, M1, P1;
@@ -252,6 +250,7 @@ static int
 gk104_ram_calc_gddr5(struct gk104_ram *ram, u32 freq)
 {
 	struct gk104_ramfuc *fuc = &ram->fuc;
+	struct nvbios_ramcfg *diff = &ram->base.diff;
 	struct nvkm_ram_data *next = ram->base.next;
 	int vc = !next->bios.ramcfg_11_02_08;
 	int mv = !next->bios.ramcfg_11_02_04;
@@ -471,7 +470,7 @@ gk104_ram_calc_gddr5(struct gk104_ram *ram, u32 freq)
 	ram_mask(fuc, 0x10f2e8, 0xffffffff, next->bios.timing[9]);
 
 	data = mask = 0x00000000;
-	if (ram->diff.ramcfg_11_08_20) {
+	if (diff->ramcfg_11_08_20) {
 		if (next->bios.ramcfg_11_08_20)
 			data |= 0x01000000;
 		mask |= 0x01000000;
@@ -479,11 +478,11 @@ gk104_ram_calc_gddr5(struct gk104_ram *ram, u32 freq)
 	ram_mask(fuc, 0x10f200, mask, data);
 
 	data = mask = 0x00000000;
-	if (ram->diff.ramcfg_11_02_03) {
+	if (diff->ramcfg_11_02_03) {
 		data |= next->bios.ramcfg_11_02_03 << 8;
 		mask |= 0x00000300;
 	}
-	if (ram->diff.ramcfg_11_01_10) {
+	if (diff->ramcfg_11_01_10) {
 		if (next->bios.ramcfg_11_01_10)
 			data |= 0x70000000;
 		mask |= 0x70000000;
@@ -491,11 +490,11 @@ gk104_ram_calc_gddr5(struct gk104_ram *ram, u32 freq)
 	ram_mask(fuc, 0x10f604, mask, data);
 
 	data = mask = 0x00000000;
-	if (ram->diff.timing_20_30_07) {
+	if (diff->timing_20_30_07) {
 		data |= next->bios.timing_20_30_07 << 28;
 		mask |= 0x70000000;
 	}
-	if (ram->diff.ramcfg_11_01_01) {
+	if (diff->ramcfg_11_01_01) {
 		if (next->bios.ramcfg_11_01_01)
 			data |= 0x00000100;
 		mask |= 0x00000100;
@@ -503,11 +502,11 @@ gk104_ram_calc_gddr5(struct gk104_ram *ram, u32 freq)
 	ram_mask(fuc, 0x10f614, mask, data);
 
 	data = mask = 0x00000000;
-	if (ram->diff.timing_20_30_07) {
+	if (diff->timing_20_30_07) {
 		data |= next->bios.timing_20_30_07 << 28;
 		mask |= 0x70000000;
 	}
-	if (ram->diff.ramcfg_11_01_02) {
+	if (diff->ramcfg_11_01_02) {
 		if (next->bios.ramcfg_11_01_02)
 			data |= 0x00000100;
 		mask |= 0x00000100;
@@ -541,11 +540,11 @@ gk104_ram_calc_gddr5(struct gk104_ram *ram, u32 freq)
 	ram_wr32(fuc, 0x10f870, 0x11111111 * next->bios.ramcfg_11_03_0f);
 
 	data = mask = 0x00000000;
-	if (ram->diff.ramcfg_11_02_03) {
+	if (diff->ramcfg_11_02_03) {
 		data |= next->bios.ramcfg_11_02_03;
 		mask |= 0x00000003;
 	}
-	if (ram->diff.ramcfg_11_01_10) {
+	if (diff->ramcfg_11_01_10) {
 		if (next->bios.ramcfg_11_01_10)
 			data |= 0x00000004;
 		mask |= 0x00000004;
@@ -961,26 +960,6 @@ gk104_ram_calc_sddr3(struct gk104_ram *ram, u32 freq)
  ******************************************************************************/
 
 static int
-gk104_ram_calc_data(struct gk104_ram *ram, u32 khz, struct nvkm_ram_data *data)
-{
-	struct nvkm_subdev *subdev = &ram->base.fb->subdev;
-	struct nvkm_ram_data *cfg;
-	u32 mhz = khz / 1000;
-
-	list_for_each_entry(cfg, &ram->cfg, head) {
-		if (mhz >= cfg->bios.rammap_min &&
-		    mhz <= cfg->bios.rammap_max) {
-			*data = *cfg;
-			data->freq = khz;
-			return 0;
-		}
-	}
-
-	nvkm_error(subdev, "ramcfg data for %dMHz not found\n", mhz);
-	return -EINVAL;
-}
-
-static int
 gk104_calc_pll_output(int fN, int M, int N, int P, int clk)
 {
 	return ((clk * N) + (((u16)(fN + 4096) * clk) >> 13)) / (M * P);
@@ -1120,13 +1099,13 @@ gk104_ram_calc(struct nvkm_ram *base, u32 freq)
 	int ret;
 
 	if (ram->base.next == NULL) {
-		ret = gk104_ram_calc_data(ram,
-					  nvkm_clk_read(clk, nv_clk_src_mem),
-					  &ram->base.former);
+		ret = nvkm_ram_data(&ram->base,
+				    nvkm_clk_read(clk, nv_clk_src_mem),
+				    &ram->base.former);
 		if (ret)
 			return ret;
 
-		ret = gk104_ram_calc_data(ram, freq, &ram->base.target);
+		ret = nvkm_ram_data(&ram->base, freq, &ram->base.target);
 		if (ret)
 			return ret;
 
@@ -1157,72 +1136,68 @@ static void
 gk104_ram_prog_0(struct gk104_ram *ram, u32 freq)
 {
 	struct nvkm_device *device = ram->base.fb->subdev.device;
-	struct nvkm_ram_data *cfg;
-	u32 mhz = freq / 1000;
+	struct nvbios_ramcfg *diff = &ram->base.diff;
+	struct nvkm_ram_data _data, *cfg = &_data;
 	u32 mask, data;
+	int ret;
 
-	list_for_each_entry(cfg, &ram->cfg, head) {
-		if (mhz >= cfg->bios.rammap_min &&
-		    mhz <= cfg->bios.rammap_max)
-			break;
-	}
-
-	if (&cfg->head == &ram->cfg)
+	ret = nvkm_ram_data(&ram->base, freq, cfg);
+	if (ret)
 		return;
 
-	if (mask = 0, data = 0, ram->diff.rammap_11_0a_03fe) {
+	if (mask = 0, data = 0, diff->rammap_11_0a_03fe) {
 		data |= cfg->bios.rammap_11_0a_03fe << 12;
 		mask |= 0x001ff000;
 	}
-	if (ram->diff.rammap_11_09_01ff) {
+	if (diff->rammap_11_09_01ff) {
 		data |= cfg->bios.rammap_11_09_01ff;
 		mask |= 0x000001ff;
 	}
 	nvkm_mask(device, 0x10f468, mask, data);
 
-	if (mask = 0, data = 0, ram->diff.rammap_11_0a_0400) {
+	if (mask = 0, data = 0, diff->rammap_11_0a_0400) {
 		data |= cfg->bios.rammap_11_0a_0400;
 		mask |= 0x00000001;
 	}
 	nvkm_mask(device, 0x10f420, mask, data);
 
-	if (mask = 0, data = 0, ram->diff.rammap_11_0a_0800) {
+	if (mask = 0, data = 0, diff->rammap_11_0a_0800) {
 		data |= cfg->bios.rammap_11_0a_0800;
 		mask |= 0x00000001;
 	}
 	nvkm_mask(device, 0x10f430, mask, data);
 
-	if (mask = 0, data = 0, ram->diff.rammap_11_0b_01f0) {
+	if (mask = 0, data = 0, diff->rammap_11_0b_01f0) {
 		data |= cfg->bios.rammap_11_0b_01f0;
 		mask |= 0x0000001f;
 	}
 	nvkm_mask(device, 0x10f400, mask, data);
 
-	if (mask = 0, data = 0, ram->diff.rammap_11_0b_0200) {
+	if (mask = 0, data = 0, diff->rammap_11_0b_0200) {
 		data |= cfg->bios.rammap_11_0b_0200 << 9;
 		mask |= 0x00000200;
 	}
 	nvkm_mask(device, 0x10f410, mask, data);
 
-	if (mask = 0, data = 0, ram->diff.rammap_11_0d) {
+	if (mask = 0, data = 0, diff->rammap_11_0d) {
 		data |= cfg->bios.rammap_11_0d << 16;
 		mask |= 0x00ff0000;
 	}
-	if (ram->diff.rammap_11_0f) {
+	if (diff->rammap_11_0f) {
 		data |= cfg->bios.rammap_11_0f << 8;
 		mask |= 0x0000ff00;
 	}
 	nvkm_mask(device, 0x10f440, mask, data);
 
-	if (mask = 0, data = 0, ram->diff.rammap_11_0e) {
+	if (mask = 0, data = 0, diff->rammap_11_0e) {
 		data |= cfg->bios.rammap_11_0e << 8;
 		mask |= 0x0000ff00;
 	}
-	if (ram->diff.rammap_11_0b_0800) {
+	if (diff->rammap_11_0b_0800) {
 		data |= cfg->bios.rammap_11_0b_0800 << 7;
 		mask |= 0x00000080;
 	}
-	if (ram->diff.rammap_11_0b_0400) {
+	if (diff->rammap_11_0b_0400) {
 		data |= cfg->bios.rammap_11_0b_0400 << 5;
 		mask |= 0x00000020;
 	}
@@ -1447,7 +1422,7 @@ gk104_ram_ctor_data(struct gk104_ram *ram, u8 ramcfg, int i)
 {
 	struct nvkm_bios *bios = ram->base.fb->subdev.device->bios;
 	struct nvkm_ram_data *cfg;
-	struct nvbios_ramcfg *d = &ram->diff;
+	struct nvbios_ramcfg *d = &ram->base.diff;
 	struct nvbios_ramcfg *p, *n;
 	u8  ver, hdr, cnt, len;
 	u32 data;
@@ -1455,7 +1430,7 @@ gk104_ram_ctor_data(struct gk104_ram *ram, u8 ramcfg, int i)
 
 	if (!(cfg = kmalloc(sizeof(*cfg), GFP_KERNEL)))
 		return -ENOMEM;
-	p = &list_last_entry(&ram->cfg, typeof(*cfg), head)->bios;
+	p = &list_last_entry(&ram->base.cfg, typeof(*cfg), head)->bios;
 	n = &cfg->bios;
 
 	/* memory config data for a range of target frequencies */
@@ -1484,7 +1459,7 @@ gk104_ram_ctor_data(struct gk104_ram *ram, u8 ramcfg, int i)
 			goto done;
 	}
 
-	list_add_tail(&cfg->head, &ram->cfg);
+	list_add_tail(&cfg->head, &ram->base.cfg);
 	if (ret = 0, i == 0)
 		goto done;
 
@@ -1511,19 +1486,6 @@ done:
 	return ret;
 }
 
-void *
-gk104_ram_dtor(struct nvkm_ram *base)
-{
-	struct gk104_ram *ram = gk104_ram(base);
-	struct nvkm_ram_data *cfg, *tmp;
-
-	list_for_each_entry_safe(cfg, tmp, &ram->cfg, head) {
-		kfree(cfg);
-	}
-
-	return ram;
-}
-
 int
 gk104_ram_new_(const struct nvkm_ram_func *func, struct nvkm_fb *fb,
 	       struct nvkm_ram **pram)
@@ -1544,8 +1506,6 @@ gk104_ram_new_(const struct nvkm_ram_func *func, struct nvkm_fb *fb,
 	ret = gf100_ram_ctor(func, fb, &ram->base);
 	if (ret)
 		return ret;
-
-	INIT_LIST_HEAD(&ram->cfg);
 
 	/* calculate a mask of differently configured memory partitions,
 	 * because, of course reclocking wasn't complicated enough
@@ -1709,7 +1669,6 @@ gk104_ram = {
 	.probe_fbp = gf100_ram_probe_fbp,
 	.probe_fbp_amount = gf108_ram_probe_fbp_amount,
 	.probe_fbpa_amount = gf100_ram_probe_fbpa_amount,
-	.dtor = gk104_ram_dtor,
 	.init = gk104_ram_init,
 	.get = gf100_ram_get,
 	.put = gf100_ram_put,

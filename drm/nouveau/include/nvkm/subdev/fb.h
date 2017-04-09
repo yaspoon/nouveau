@@ -141,6 +141,9 @@ struct nvkm_ram {
 	u32 mr[16];
 	u32 mr1_nuts;
 
+	struct nvbios_ramcfg diff;
+	struct list_head cfg;
+
 	struct nvkm_ram_data *next;
 	struct nvkm_ram_data former;
 	struct nvkm_ram_data xition;

@@ -10,6 +10,7 @@ int  nvkm_ram_new_(const struct nvkm_ram_func *, struct nvkm_fb *,
 		   struct nvkm_ram **);
 void nvkm_ram_del(struct nvkm_ram **);
 int  nvkm_ram_init(struct nvkm_ram *);
+int nvkm_ram_data(struct nvkm_ram *, u32 khz, struct nvkm_ram_data *);
 
 extern const struct nvkm_ram_func nv04_ram_func;
 
