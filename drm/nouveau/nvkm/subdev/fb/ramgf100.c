@@ -228,8 +228,8 @@ gf100_ram_calc_xits(struct gf100_ram *ram,
 
 	ram_mask(fuc, 0x10f808, 0xffffffff, 0x08020050);
 
-	if (ram_mask(fuc, mr[1], 0x000f, ram->base.mr[1]),
-	    ram_diff(fuc, mr[1], 0x000f))
+	if (ram_mask(fuc, mr[1], 0x003f, ram->base.mr[1]),
+	    ram_diff(fuc, mr[1], 0x003f))
 		ram_nsec(fuc, 1000);
 
 	ram_nuke(fuc, 0x10f830);

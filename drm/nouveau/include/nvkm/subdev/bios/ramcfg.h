@@ -140,7 +140,8 @@ struct nvbios_ramcfg {
 			unsigned timing_10_CWL:8;
 			unsigned timing_10_14:8;
 			unsigned timing_10_15:8;
-			/* empty: 22, 23 */
+			unsigned timing_10_16_03:2;
+			/* empty: 23 */
 			unsigned timing_10_18:8;
 		};
 		struct {

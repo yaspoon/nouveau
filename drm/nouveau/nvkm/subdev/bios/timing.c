@@ -117,6 +117,7 @@ nvbios_timingEp(struct nvkm_bios *bios, int idx,
 			p->timing_10_18  = nvbios_rd08(bios, data + 0x18);
 		case 24:
 		case 23:
+			p->timing_10_16_03 = (nvbios_rd08(bios, data + 0x16) & 0x03) >> 0;
 		case 22:
 			p->timing_10_15  = nvbios_rd08(bios, data + 0x15);
 		case 21:
