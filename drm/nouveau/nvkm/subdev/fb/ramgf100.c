@@ -221,6 +221,7 @@ gf100_ram_calc_xits(struct gf100_ram *ram,
 		      (next->bios.timing_10_WTR & 0x7f) << 8);
 	ram_mask(fuc, 0x10f29c, 0x0000001f,
 		      (next->bios.timing_10_14 & 0xff) << 9 |
+		      (next->bios.timing_10_15 & 0x0f) << 5 |
 		      (next->bios.timing_10_0d & 0x1f));
 	ram_mask(fuc, 0x10f2a0, 0x001f8000,
 		      (next->bios.timing_10_RRD & 0x3f) << 15);
