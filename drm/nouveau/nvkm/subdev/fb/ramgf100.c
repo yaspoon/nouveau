@@ -226,11 +226,22 @@ gf100_ram_calc_xits(struct gf100_ram *ram,
 	ram_mask(fuc, 0x10f2a0, 0x001f8000,
 		      (next->bios.timing_10_RRD & 0x3f) << 15);
 
+	data = next->bios.timing_10_18 << 28;
+	mask = 0x70000000;
+	if ((ram_rd32(fuc, 0x10f614) & 0x70000000) != data)
+		ram_nuke(fuc, 0x13d8f4);
+	ram_mask(fuc, 0x10f614, mask, data);
+	ram_mask(fuc, 0x10f610, mask, data);
+
 	ram_mask(fuc, 0x10f808, 0xffffffff, 0x08020050);
 
 	if (ram_mask(fuc, mr[1], 0x003f, ram->base.mr[1]),
 	    ram_diff(fuc, mr[1], 0x003f))
 		ram_nsec(fuc, 1000);
+
+	ram_mask(fuc, 0x13d8f4, 0, 0);
+	// 0x0002003a // 0x00000002
+	ram_mask(fuc, 0x61c140, 0x01c00000, next->bios.timing_10_18 << 22);
 
 	ram_nuke(fuc, 0x10f830);
 	ram_mask(fuc, 0x10f830, 0x00000000, 0x00000000);
