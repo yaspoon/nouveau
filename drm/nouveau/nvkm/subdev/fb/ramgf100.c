@@ -124,59 +124,19 @@ gf100_ram_train(struct gf100_ramfuc *fuc, u32 magic)
 	}
 }
 
-int
-gf100_ram_calc(struct nvkm_ram *base, u32 freq)
+static int
+gf100_ram_calc_xits(struct gf100_ram *ram,
+		    struct nvkm_ram_data *prev,
+		    struct nvkm_ram_data *next)
 {
-	struct gf100_ram *ram = gf100_ram(base);
 	struct gf100_ramfuc *fuc = &ram->fuc;
 	struct nvkm_subdev *subdev = &ram->base.fb->subdev;
 	struct nvkm_device *device = subdev->device;
 	struct nvkm_clk *clk = device->clk;
-	struct nvkm_bios *bios = device->bios;
-	struct nvbios_ramcfg cfg;
-	u8  ver, cnt, len, strap;
-	struct {
-		u32 data;
-		u8  size;
-	} rammap, ramcfg, timing;
 	int ref, div, out;
 	int from, mode;
 	int N1, M1, P;
 	int ret;
-
-	/* lookup memory config data relevant to the target frequency */
-	rammap.data = nvbios_rammapEm(bios, freq / 1000, &ver, &rammap.size,
-				      &cnt, &ramcfg.size, &cfg);
-	if (!rammap.data || ver != 0x10 || rammap.size < 0x0e) {
-		nvkm_error(subdev, "invalid/missing rammap entry\n");
-		return -EINVAL;
-	}
-
-	/* locate specific data set for the attached memory */
-	strap = nvbios_ramcfg_index(subdev);
-	if (strap >= cnt) {
-		nvkm_error(subdev, "invalid ramcfg strap\n");
-		return -EINVAL;
-	}
-
-	ramcfg.data = rammap.data + rammap.size + (strap * ramcfg.size);
-	if (!ramcfg.data || ver != 0x10 || ramcfg.size < 0x0e) {
-		nvkm_error(subdev, "invalid/missing ramcfg entry\n");
-		return -EINVAL;
-	}
-
-	/* lookup memory timings, if bios says they're present */
-	strap = nvbios_rd08(bios, ramcfg.data + 0x01);
-	if (strap != 0xff) {
-		timing.data = nvbios_timingEe(bios, strap, &ver, &timing.size,
-					      &cnt, &len);
-		if (!timing.data || ver != 0x10 || timing.size < 0x19) {
-			nvkm_error(subdev, "invalid/missing timing entry\n");
-			return -EINVAL;
-		}
-	} else {
-		timing.data = 0;
-	}
 
 	ret = ram_init(fuc, ram->base.fb);
 	if (ret)
@@ -190,9 +150,9 @@ gf100_ram_calc(struct nvkm_ram *base, u32 freq)
 		ref = nvkm_clk_read(clk, nv_clk_src_sppll0);
 	else
 		ref = nvkm_clk_read(clk, nv_clk_src_sppll1);
-	div = max(min((ref * 2) / freq, (u32)65), (u32)2) - 2;
+	div = max(min((ref * 2) / next->freq, (u32)65), (u32)2) - 2;
 	out = (ref * 2) / (div + 2);
-	mode = freq != out;
+	mode = next->freq != out;
 
 	ram_mask(fuc, 0x137360, 0x00000002, 0x00000000);
 
@@ -228,7 +188,7 @@ gf100_ram_calc(struct nvkm_ram *base, u32 freq)
 		ram_wait(fuc, 0x137390, 0x00020000, 0x00020000, 64000);
 
 		/* calculate mempll */
-		ret = gt215_pll_calc(subdev, &ram->mempll, freq,
+		ret = gt215_pll_calc(subdev, &ram->mempll, next->freq,
 				     &N1, NULL, &M1, &P);
 		if (ret <= 0) {
 			nvkm_error(subdev, "unable to calc refpll\n");
@@ -402,6 +362,27 @@ gf100_ram_calc(struct nvkm_ram *base, u32 freq)
 		ram_mask(fuc, 0x132000, 0x00000001, 0x00000000);
 
 	return 0;
+}
+
+int
+gf100_ram_calc(struct nvkm_ram *base, u32 freq)
+{
+	struct gf100_ram *ram = gf100_ram(base);
+	struct nvkm_clk *clk = ram->base.fb->subdev.device->clk;
+	int ret;
+
+	ret = nvkm_ram_data(&ram->base, nvkm_clk_read(clk, nv_clk_src_mem),
+			    &ram->base.former);
+	if (ret)
+		return ret;
+
+	ret = nvkm_ram_data(&ram->base, freq, &ram->base.target);
+	if (ret)
+		return ret;
+
+	ram->base.next = &ram->base.target;
+
+	return gf100_ram_calc_xits(ram, &ram->base.former, &ram->base.target);
 }
 
 int
