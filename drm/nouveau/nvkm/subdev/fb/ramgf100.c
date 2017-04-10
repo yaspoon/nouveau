@@ -133,7 +133,9 @@ gf100_ram_calc_xits(struct gf100_ram *ram,
 		    struct nvkm_ram_data *prev,
 		    struct nvkm_ram_data *next)
 {
+	struct nvbios_ramcfg *diff = &ram->base.diff;
 	struct gf100_ramfuc *fuc = &ram->fuc;
+	u32 mask, data;
 	int ret, i;
 
 	ret = ram_init(fuc, ram->base.fb);
@@ -203,10 +205,17 @@ gf100_ram_calc_xits(struct gf100_ram *ram,
 		      (next->bios.timing_10_RAS & 0x7f) << 17 |
 		      (next->bios.timing_10_RFC & 0x07) <<  8 |
 		      (next->bios.timing_10_RC  & 0xff));
-	ram_mask(fuc, 0x10f294, 0x03ffc07f,
-		      (next->bios.timing_10_RCDWR & 0x3f) << 20 |
-		      (next->bios.timing_10_RCDRD & 0x3f) << 14 |
-		      (next->bios.timing_10_CL    & 0x7f));
+
+	data = (next->bios.timing_10_RCDWR & 0x3f) << 20 |
+	       (next->bios.timing_10_RCDRD & 0x3f) << 14 |
+	       (next->bios.timing_10_CL    & 0x7f);
+	mask = 0x03ffc07f;
+	if (next->bios.timing_10_CWL || diff->timing_10_CWL) {
+		data |= (next->bios.timing_10_CWL & 0x7f) << 7;
+		mask |= 0x00003f80;
+	}
+	ram_mask(fuc, 0x10f294, mask, data);
+
 	ram_mask(fuc, 0x10f298, 0x007f7f00,
 		      (next->bios.timing_10_WR  & 0x7f) << 16 |
 		      (next->bios.timing_10_WTR & 0x7f) << 8);
@@ -511,7 +520,8 @@ gf100_ram_ctor(const struct nvkm_ram_func *func, struct nvkm_fb *fb,
 static int
 gf100_ram_new_data(struct gf100_ram *ram, u8 ramcfg, int i)
 {
-	struct nvkm_bios *bios = ram->base.fb->subdev.device->bios;
+	struct nvkm_device *device = ram->base.fb->subdev.device;
+	struct nvkm_bios *bios = device->bios;
 	struct nvkm_ram_data *cfg;
 	struct nvbios_ramcfg *d = &ram->base.diff;
 	struct nvbios_ramcfg *p, *n;
@@ -554,9 +564,7 @@ gf100_ram_new_data(struct gf100_ram *ram, u8 ramcfg, int i)
 	if (ret = 0, i == 0)
 		goto done;
 
-	(void)d;
-	(void)p;
-	(void)n;
+	d->timing_10_CWL |= p->timing_10_CWL != n->timing_10_CWL;
 done:
 	if (ret)
 		kfree(cfg);
