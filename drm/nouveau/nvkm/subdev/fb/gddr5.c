@@ -41,6 +41,9 @@ nvkm_gddr5_calc(struct nvkm_ram *ram, bool nuts)
 	xd = !ram->next->bios.ramcfg_DLLoff;
 
 	switch (ram->next->bios.ramcfg_ver) {
+	case 0x10:
+		pd = lf = vh = vr = vo = l3 = 0; /*XXX*/
+		break;
 	case 0x11:
 		pd =  ram->next->bios.ramcfg_11_01_80;
 		lf =  ram->next->bios.ramcfg_11_01_40;
@@ -54,14 +57,22 @@ nvkm_gddr5_calc(struct nvkm_ram *ram, bool nuts)
 	}
 
 	switch (ram->next->bios.timing_ver) {
+	case 0x10:
+		WL = 5; /*XXX*/
+		CL = ram->next->bios.timing_10_CL;
+		WR = ram->next->bios.timing_10_WR;
+		at[0] = at[1] = 0; /*XXX*/
+		dt = ram->next->bios.timing_10_ODT;
+		ds = 0; /*XXX*/
+		break;
 	case 0x20:
 		WL = (ram->next->bios.timing[1] & 0x00000f80) >> 7;
 		CL = (ram->next->bios.timing[1] & 0x0000001f);
 		WR = (ram->next->bios.timing[2] & 0x007f0000) >> 16;
 		at[0] = ram->next->bios.timing_20_2e_c0;
 		at[1] = ram->next->bios.timing_20_2e_30;
-		dt =  ram->next->bios.timing_20_2e_03;
-		ds =  ram->next->bios.timing_20_2f_03;
+		dt = ram->next->bios.timing_20_2e_03;
+		ds = ram->next->bios.timing_20_2f_03;
 		break;
 	default:
 		return -ENOSYS;
