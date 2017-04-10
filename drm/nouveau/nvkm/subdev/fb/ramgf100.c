@@ -642,6 +642,61 @@ gf100_ram_ctor(const struct nvkm_ram_func *func, struct nvkm_fb *fb,
 	return 0;
 }
 
+static int
+gf100_ram_new_data(struct gf100_ram *ram, u8 ramcfg, int i)
+{
+	struct nvkm_bios *bios = ram->base.fb->subdev.device->bios;
+	struct nvkm_ram_data *cfg;
+	struct nvbios_ramcfg *d = &ram->base.diff;
+	struct nvbios_ramcfg *p, *n;
+	u8  ver, hdr, cnt, len;
+	u32 data;
+	int ret;
+
+	if (!(cfg = kmalloc(sizeof(*cfg), GFP_KERNEL)))
+		return -ENOMEM;
+	p = &list_last_entry(&ram->base.cfg, typeof(*cfg), head)->bios;
+	n = &cfg->bios;
+
+	/* memory config data for a range of target frequencies */
+	data = nvbios_rammapEp(bios, i, &ver, &hdr, &cnt, &len, &cfg->bios);
+	if (ret = -ENOENT, !data)
+		goto done;
+	if (ret = -ENOSYS, ver != 0x10 || hdr < 0x0e)
+		goto done;
+
+	/* ... and a portion specific to the attached memory */
+	data = nvbios_rammapSp(bios, data, ver, hdr, cnt, len, ramcfg,
+			       &ver, &hdr, &cfg->bios);
+	if (ret = -EINVAL, !data)
+		goto done;
+	if (ret = -ENOSYS, ver != 0x10 || hdr < 0x0d)
+		goto done;
+
+	/* lookup memory timings, if bios says they're present */
+	if (cfg->bios.ramcfg_timing != 0xff) {
+		data = nvbios_timingEp(bios, cfg->bios.ramcfg_timing,
+				       &ver, &hdr, &cnt, &len,
+				       &cfg->bios);
+		if (ret = -EINVAL, !data)
+			goto done;
+		if (ret = -ENOSYS, ver != 0x10 || hdr < 0x19)
+			goto done;
+	}
+
+	list_add_tail(&cfg->head, &ram->base.cfg);
+	if (ret = 0, i == 0)
+		goto done;
+
+	(void)d;
+	(void)p;
+	(void)n;
+done:
+	if (ret)
+		kfree(cfg);
+	return ret;
+}
+
 int
 gf100_ram_new_(const struct nvkm_ram_func *func,
 	       struct nvkm_fb *fb, struct nvkm_ram **pram)
@@ -649,7 +704,7 @@ gf100_ram_new_(const struct nvkm_ram_func *func,
 	struct nvkm_subdev *subdev = &fb->subdev;
 	struct nvkm_bios *bios = subdev->device->bios;
 	struct gf100_ram *ram;
-	int ret;
+	int ret, i;
 
 	if (!(ram = kzalloc(sizeof(*ram), GFP_KERNEL)))
 		return -ENOMEM;
@@ -658,6 +713,25 @@ gf100_ram_new_(const struct nvkm_ram_func *func,
 	ret = gf100_ram_ctor(func, fb, &ram->base);
 	if (ret)
 		return ret;
+
+	/* parse bios data for all rammap table entries up-front, and
+	 * build information on whether certain fields differ between
+	 * any of the entries.
+	 *
+	 * the binary driver appears to completely ignore some fields
+	 * when all entries contain the same value.  at first, it was
+	 * hoped that these were mere optimisations and the bios init
+	 * tables had configured as per the values here, but there is
+	 * evidence now to suggest that this isn't the case and we do
+	 * need to treat this condition as a "don't touch" indicator.
+	 */
+	for (i = 0; !ret; i++) {
+		ret = gf100_ram_new_data(ram, nvbios_ramcfg_index(subdev), i);
+		if (ret && ret != -ENOENT) {
+			nvkm_error(subdev, "failed to parse ramcfg data\n");
+			return ret;
+		}
+	}
 
 	ret = nvbios_pll_parse(bios, 0x0c, &ram->refpll);
 	if (ret) {
