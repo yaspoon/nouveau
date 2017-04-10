@@ -198,7 +198,8 @@ gf100_ram_calc_xits(struct gf100_ram *ram,
 	ram_wr32(fuc, mr[0], ram->base.mr[0]);
 	ram_nsec(fuc, 1000);
 
-	ram_mask(fuc, 0x10f290, 0x00fe07ff,
+	ram_mask(fuc, 0x10f290, 0x7ffe07ff,
+		      (next->bios.timing_10_RP  & 0x7f) << 24 |
 		      (next->bios.timing_10_RAS & 0x7f) << 17 |
 		      (next->bios.timing_10_RFC & 0x07) <<  8 |
 		      (next->bios.timing_10_RC  & 0xff));
