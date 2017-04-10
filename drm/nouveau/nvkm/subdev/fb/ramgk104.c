@@ -270,8 +270,8 @@ gk104_ram_calc_gddr5(struct gk104_ram *ram, u32 freq)
 	}
 
 	if (vc == 1 && ram_have(fuc, gpio2E)) {
-		u32 temp  = ram_mask(fuc, gpio2E, 0x3000, fuc->r_func2E[1]);
-		if (temp != ram_rd32(fuc, gpio2E)) {
+		if (ram_mask(fuc, gpio2E, 0x3000, fuc->r_func2E[1]),
+		    ram_diff(fuc, gpio2E, 0x3000)) {
 			ram_wr32(fuc, gpiotrig, 1);
 			ram_nsec(fuc, 20000);
 		}
@@ -357,8 +357,8 @@ gk104_ram_calc_gddr5(struct gk104_ram *ram, u32 freq)
 	}
 
 	if (ram_have(fuc, gpioMV)) {
-		u32 temp  = ram_mask(fuc, gpioMV, 0x3000, fuc->r_funcMV[mv]);
-		if (temp != ram_rd32(fuc, gpioMV)) {
+		if (ram_mask(fuc, gpioMV, 0x3000, fuc->r_funcMV[mv]),
+		    ram_diff(fuc, gpioMV, 0x3000)) {
 			ram_wr32(fuc, gpiotrig, 1);
 			ram_nsec(fuc, 64000);
 		}
@@ -551,7 +551,8 @@ gk104_ram_calc_gddr5(struct gk104_ram *ram, u32 freq)
 		mask |= 0x00000004;
 	}
 
-	if ((ram_mask(fuc, 0x100770, mask, data) & mask & 4) != (data & 4)) {
+	if (ram_mask(fuc, 0x100770, mask, data),
+	    ram_diff(fuc, 0x100770, 0x00000004)) {
 		ram_mask(fuc, 0x100750, 0x00000008, 0x00000008);
 		ram_wr32(fuc, 0x100710, 0x00000000);
 		ram_wait(fuc, 0x100710, 0x80000000, 0x80000000, 200000);
@@ -599,8 +600,8 @@ gk104_ram_calc_gddr5(struct gk104_ram *ram, u32 freq)
 	ram_mask(fuc, mr[7], 0xfff, ram->base.mr[7]);
 
 	if (vc == 0 && ram_have(fuc, gpio2E)) {
-		u32 temp  = ram_mask(fuc, gpio2E, 0x3000, fuc->r_func2E[0]);
-		if (temp != ram_rd32(fuc, gpio2E)) {
+		if (ram_mask(fuc, gpio2E, 0x3000, fuc->r_func2E[0]),
+		    ram_diff(fuc, gpio2E, 0x3000)) {
 			ram_wr32(fuc, gpiotrig, 1);
 			ram_nsec(fuc, 20000);
 		}
@@ -648,7 +649,8 @@ gk104_ram_calc_gddr5(struct gk104_ram *ram, u32 freq)
 	}
 
 	/* LP3 */
-	if (ram_mask(fuc, mr[5], 0x004, ram->base.mr[5]) != ram->base.mr[5])
+	if (ram_mask(fuc, mr[5], 0x004, ram->base.mr[5]),
+	    ram_diff(fuc, mr[5], 0x004))
 		ram_nsec(fuc, 1000);
 
 	if (ram->mode != 2) {
@@ -715,8 +717,8 @@ gk104_ram_calc_sddr3(struct gk104_ram *ram, u32 freq)
 		ram_wr32(fuc, 0x62c000, 0x0f0f0000);
 
 	if (vc == 1 && ram_have(fuc, gpio2E)) {
-		u32 temp  = ram_mask(fuc, gpio2E, 0x3000, fuc->r_func2E[1]);
-		if (temp != ram_rd32(fuc, gpio2E)) {
+		if (ram_mask(fuc, gpio2E, 0x3000, fuc->r_func2E[1]),
+		    ram_diff(fuc, gpio2E, 0x3000)) {
 			ram_wr32(fuc, gpiotrig, 1);
 			ram_nsec(fuc, 20000);
 		}
@@ -808,8 +810,8 @@ gk104_ram_calc_sddr3(struct gk104_ram *ram, u32 freq)
 	ram_mask(fuc, 0x1373f4, 0x00010000, 0x00000000);
 
 	if (ram_have(fuc, gpioMV)) {
-		u32 temp  = ram_mask(fuc, gpioMV, 0x3000, fuc->r_funcMV[mv]);
-		if (temp != ram_rd32(fuc, gpioMV)) {
+		if (ram_mask(fuc, gpioMV, 0x3000, fuc->r_funcMV[mv]),
+		    ram_diff(fuc, gpioMV, 0x3000)) {
 			ram_wr32(fuc, gpiotrig, 1);
 			ram_nsec(fuc, 64000);
 		}
@@ -924,8 +926,8 @@ gk104_ram_calc_sddr3(struct gk104_ram *ram, u32 freq)
 	}
 
 	if (vc == 0 && ram_have(fuc, gpio2E)) {
-		u32 temp  = ram_mask(fuc, gpio2E, 0x3000, fuc->r_func2E[0]);
-		if (temp != ram_rd32(fuc, gpio2E)) {
+		if (ram_mask(fuc, gpio2E, 0x3000, fuc->r_func2E[0]),
+		    ram_diff(fuc, gpio2E, 0x3000)) {
 			ram_wr32(fuc, gpiotrig, 1);
 			ram_nsec(fuc, 20000);
 		}

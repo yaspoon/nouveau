@@ -11,7 +11,8 @@ struct ramfuc {
 
 struct ramfuc_reg {
 	int sequence;
-	bool force;
+	bool force:1;
+	u32 modified;
 	u32 addr;
 	u32 stride; /* in bytes */
 	u32 mask;
@@ -110,12 +111,20 @@ ramfuc_nuke(struct ramfuc *ram, struct ramfuc_reg *reg)
 static inline u32
 ramfuc_mask(struct ramfuc *ram, struct ramfuc_reg *reg, u32 mask, u32 data)
 {
-	u32 temp = ramfuc_rd32(ram, reg);
-	if (temp != ((temp & ~mask) | data) || reg->force) {
-		ramfuc_wr32(ram, reg, (temp & ~mask) | data);
+	u32 prev = ramfuc_rd32(ram, reg);
+	u32 next = (prev & ~mask) | data;
+	reg->modified = reg->force ? ~0 : next ^ prev;
+	if (reg->modified) {
+		ramfuc_wr32(ram, reg, next);
 		reg->force = false;
 	}
-	return temp;
+	return prev;
+}
+
+static inline bool
+ramfuc_diff(struct ramfuc *ram, struct ramfuc_reg *reg, u32 mask)
+{
+	return (reg->modified & mask) != 0;
 }
 
 static inline void
@@ -167,6 +176,7 @@ ramfuc_unblock(struct ramfuc *ram)
 #define ram_wr32(s,r,d)      ramfuc_wr32(&(s)->base, &(s)->r_##r, (d))
 #define ram_nuke(s,r)        ramfuc_nuke(&(s)->base, &(s)->r_##r)
 #define ram_mask(s,r,m,d)    ramfuc_mask(&(s)->base, &(s)->r_##r, (m), (d))
+#define ram_diff(s,r,m)      ramfuc_diff(&(s)->base, &(s)->r_##r, (m))
 #define ram_wait(s,r,m,d,n)  ramfuc_wait(&(s)->base, (r), (m), (d), (n))
 #define ram_nsec(s,n)        ramfuc_nsec(&(s)->base, (n))
 #define ram_wait_vblank(s)   ramfuc_wait_vblank(&(s)->base)
