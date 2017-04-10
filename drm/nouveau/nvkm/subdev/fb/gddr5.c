@@ -63,7 +63,9 @@ nvkm_gddr5_calc(struct nvkm_ram *ram, bool nuts)
 		WR = ram->next->bios.timing_10_WR;
 		at[0] = at[1] = 0; /*XXX*/
 		dt = ram->next->bios.timing_10_ODT;
-		ds = 0; /*XXX*/
+		ds = ram->next->bios.timing_10_0e_30;
+		if (!ds)
+			ds = ram->mr[1] & 0x003;
 		break;
 	case 0x20:
 		WL = (ram->next->bios.timing[1] & 0x00000f80) >> 7;
