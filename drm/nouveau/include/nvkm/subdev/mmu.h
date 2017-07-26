@@ -25,6 +25,7 @@ struct nvkm_vma {
 };
 
 struct nvkm_vm {
+	const struct nvkm_vmm_func *func;
 	struct nvkm_mmu *mmu;
 
 	struct mutex mutex;
@@ -37,6 +38,10 @@ struct nvkm_vm {
 	struct nvkm_vm_pgt *pgt;
 	u32 fpde;
 	u32 lpde;
+
+	struct kref kref;
+	u64 start;
+	u64 limit;
 
 	bool bootstrapped;
 };
@@ -53,6 +58,11 @@ void nvkm_vm_map_at(struct nvkm_vma *, u64 offset, struct nvkm_mem *);
 void nvkm_vm_unmap(struct nvkm_vma *);
 void nvkm_vm_unmap_at(struct nvkm_vma *, u64 offset, u64 length);
 
+int nvkm_vmm_new(struct nvkm_mmu *, u64 addr, u64 size, void *argv, u32 argc,
+		 struct lock_class_key *, struct nvkm_vmm **);
+struct nvkm_vmm *nvkm_vmm_ref(struct nvkm_vmm *);
+void nvkm_vmm_unref(struct nvkm_vmm **);
+
 struct nvkm_mmu {
 	const struct nvkm_mmu_func *func;
 	struct nvkm_subdev subdev;
@@ -60,6 +70,8 @@ struct nvkm_mmu {
 	u64 limit;
 	u8  dma_bits;
 	u8  lpg_shift;
+
+	struct nvkm_vmm *vmm;
 };
 
 int nv04_mmu_new(struct nvkm_device *, int, struct nvkm_mmu **);

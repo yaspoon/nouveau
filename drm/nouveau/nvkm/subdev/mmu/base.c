@@ -22,6 +22,7 @@
  * Authors: Ben Skeggs
  */
 #include "priv.h"
+#include "vmm.h"
 
 #include <core/gpuobj.h>
 #include <subdev/fb.h>
@@ -365,32 +366,18 @@ int
 nvkm_vm_create(struct nvkm_mmu *mmu, u64 offset, u64 length, u64 mm_offset,
 	       u32 block, struct lock_class_key *key, struct nvkm_vm **pvm)
 {
-	static struct lock_class_key _key;
+	struct nvkm_vmm_func func = { .page_block = block };
 	struct nvkm_vm *vm;
-	u64 mm_length = (offset + length) - mm_offset;
 	int ret;
 
 	vm = kzalloc(sizeof(*vm), GFP_KERNEL);
 	if (!vm)
 		return -ENOMEM;
 
-	__mutex_init(&vm->mutex, "&vm->mutex", key ? key : &_key);
-	INIT_LIST_HEAD(&vm->pgd_list);
-	vm->mmu = mmu;
-	kref_init(&vm->refcount);
-	vm->fpde = offset >> (mmu->func->pgt_bits + 12);
-	vm->lpde = (offset + length - 1) >> (mmu->func->pgt_bits + 12);
-
-	vm->pgt  = vzalloc((vm->lpde - vm->fpde + 1) * sizeof(*vm->pgt));
-	if (!vm->pgt) {
-		kfree(vm);
-		return -ENOMEM;
-	}
-
-	ret = nvkm_mm_init(&vm->mm, mm_offset >> 12, mm_length >> 12,
-			   block >> 12);
+	ret = nvkm_vmm_ctor(&func, mmu, order_base_2(mmu->limit),
+			    mm_offset, offset + length - mm_offset, key, vm);
+	vm->func = NULL;
 	if (ret) {
-		vfree(vm->pgt);
 		kfree(vm);
 		return ret;
 	}
@@ -405,6 +392,20 @@ nvkm_vm_new(struct nvkm_device *device, u64 offset, u64 length, u64 mm_offset,
 	    struct lock_class_key *key, struct nvkm_vm **pvm)
 {
 	struct nvkm_mmu *mmu = device->mmu;
+
+	*pvm = NULL;
+	if (mmu->func->uvmm) {
+		const struct nvkm_vmm_user *uvmm;
+		int ret;
+
+		mmu->func->uvmm(mmu, 0, &uvmm);
+		ret = uvmm->ctor(mmu, mm_offset, offset + length - mm_offset,
+				 NULL, 0, key, pvm);
+		if (ret)
+			nvkm_vm_ref(NULL, pvm, NULL);
+		return ret;
+	}
+
 	if (!mmu->func->create)
 		return -EINVAL;
 	return mmu->func->create(mmu, offset, length, mm_offset, key, pvm);
@@ -463,8 +464,7 @@ nvkm_vm_del(struct kref *kref)
 		nvkm_vm_unlink(vm, vpgd->obj);
 	}
 
-	nvkm_mm_fini(&vm->mm);
-	vfree(vm->pgt);
+	vm = nvkm_vmm_dtor(vm);
 	kfree(vm);
 }
 
@@ -494,8 +494,16 @@ static int
 nvkm_mmu_oneinit(struct nvkm_subdev *subdev)
 {
 	struct nvkm_mmu *mmu = nvkm_mmu(subdev);
+
+	if (mmu->func->vmm_global) {
+		int ret = nvkm_vmm_new(mmu, 0, 0, NULL, 0, NULL, &mmu->vmm);
+		if (ret)
+			return ret;
+	}
+
 	if (mmu->func->oneinit)
 		return mmu->func->oneinit(mmu);
+
 	return 0;
 }
 
@@ -512,6 +520,7 @@ static void *
 nvkm_mmu_dtor(struct nvkm_subdev *subdev)
 {
 	struct nvkm_mmu *mmu = nvkm_mmu(subdev);
+	nvkm_vmm_unref(&mmu->vmm);
 	if (mmu->func->dtor)
 		return mmu->func->dtor(mmu);
 	return mmu;

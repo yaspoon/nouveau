@@ -2,6 +2,7 @@
 #define __NVKM_MMU_PRIV_H__
 #define nvkm_mmu(p) container_of((p), struct nvkm_mmu, subdev)
 #include <subdev/mmu.h>
+struct nvkm_vmm_user;
 
 void nvkm_mmu_ctor(const struct nvkm_mmu_func *, struct nvkm_device *,
 		   int index, struct nvkm_mmu *);
@@ -32,6 +33,10 @@ struct nvkm_mmu_func {
 	void (*unmap)(struct nvkm_vma *, struct nvkm_memory *pgt,
 		      u32 pte, u32 cnt);
 	void (*flush)(struct nvkm_vm *);
+
+	int (*uvmm)(struct nvkm_mmu *, int, const struct nvkm_vmm_user **);
+
+	bool vmm_global;
 };
 
 int nvkm_vm_create(struct nvkm_mmu *, u64, u64, u64, u32,
