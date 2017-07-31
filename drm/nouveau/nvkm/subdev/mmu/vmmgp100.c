@@ -21,8 +21,24 @@
  */
 #include "vmmgf100.h"
 
+#include <core/gpuobj.h>
+
+static void
+gp100_vmm_join(struct gf100_vmm *vmm, struct nvkm_gpuobj *inst)
+{
+	u64 addr = nvkm_memory_addr(vmm->pd);
+
+	nvkm_kmap(inst);
+	nvkm_wo32(inst, 0x0200, lower_32_bits(addr) | 0x00000030);
+	nvkm_wo32(inst, 0x0204, upper_32_bits(addr));
+	nvkm_wo32(inst, 0x0208, lower_32_bits(vmm->base.limit));
+	nvkm_wo32(inst, 0x020c, upper_32_bits(vmm->base.limit));
+	nvkm_done(inst);
+}
+
 static const struct gf100_vmm_func
 gp100_vmm = {
+	.join = gp100_vmm_join,
 };
 
 static int

@@ -11,6 +11,7 @@ struct gf100_vmm {
 };
 
 struct gf100_vmm_func {
+	void (*join)(struct gf100_vmm *, struct nvkm_gpuobj *inst);
 };
 
 int gf100_vmm_new_(const struct gf100_vmm_func *, struct nvkm_mmu *,

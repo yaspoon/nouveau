@@ -47,6 +47,11 @@ gf100_vmm_join(struct nvkm_vmm *base, struct nvkm_gpuobj *inst)
 	u64  addr = nvkm_memory_addr(vmm->pd);
 	u64 limit = vmm->base.limit;
 
+	if (vmm->func->join) {
+		vmm->func->join(vmm, inst);
+		return 0;
+	}
+
 	nvkm_kmap(inst);
 	nvkm_wo32(inst, 0x0200, lower_32_bits(addr));
 	nvkm_wo32(inst, 0x0204, upper_32_bits(addr));
