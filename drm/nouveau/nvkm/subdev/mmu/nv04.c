@@ -22,6 +22,7 @@
  * Authors: Ben Skeggs
  */
 #include "nv04.h"
+#include "vmmnv04.h"
 
 #include <core/gpuobj.h>
 
@@ -80,16 +81,11 @@ nv04_mmu_oneinit(struct nvkm_mmu *base)
 	struct nvkm_memory *dma;
 	int ret;
 
-	ret = nvkm_vm_create(&mmu->base, 0, NV04_PDMA_SIZE, 0, 4096, NULL,
-			     &mmu->vm);
-	if (ret)
-		return ret;
-
 	ret = nvkm_memory_new(device, NVKM_MEM_TARGET_INST,
 			      (NV04_PDMA_SIZE / NV04_PDMA_PAGE) * 4 + 8,
 			      16, true, &dma);
-	mmu->vm->pgt[0].mem[0] = dma;
-	mmu->vm->pgt[0].refcount[0] = 1;
+	mmu->base.vmm->pgt[0].mem[0] = dma;
+	mmu->base.vmm->pgt[0].refcount[0] = 1;
 	if (ret)
 		return ret;
 
@@ -105,10 +101,8 @@ nv04_mmu_dtor(struct nvkm_mmu *base)
 {
 	struct nv04_mmu *mmu = nv04_mmu(base);
 	struct nvkm_device *device = mmu->base.subdev.device;
-	if (mmu->vm) {
-		nvkm_memory_del(&mmu->vm->pgt[0].mem[0]);
-		nvkm_vm_ref(NULL, &mmu->vm, NULL);
-	}
+	if (mmu->base.vmm)
+		nvkm_memory_del(&mmu->base.vmm->pgt[0].mem[0]);
 	if (mmu->nullp) {
 		dma_free_coherent(device->dev, 16 * 1024,
 				  mmu->nullp, mmu->null);
@@ -128,6 +122,14 @@ nv04_mmu_new_(const struct nvkm_mmu_func *func, struct nvkm_device *device,
 	return 0;
 }
 
+static int
+nv04_mmu_uvmm(struct nvkm_mmu *base, int i, const struct nvkm_vmm_user **puvmm)
+{
+	if (i == 0)
+		*puvmm = &nv04_vmm_user;
+	return 1;
+}
+
 const struct nvkm_mmu_func
 nv04_mmu = {
 	.oneinit = nv04_mmu_oneinit,
@@ -140,6 +142,8 @@ nv04_mmu = {
 	.map_sg = nv04_vm_map_sg,
 	.unmap = nv04_vm_unmap,
 	.flush = nv04_vm_flush,
+	.uvmm = nv04_mmu_uvmm,
+	.vmm_global = true,
 };
 
 int
