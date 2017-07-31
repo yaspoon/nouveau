@@ -41,6 +41,7 @@ enum nvkm_devidx {
 	NVKM_ENGINE_CIPHER,
 	NVKM_ENGINE_DISP,
 	NVKM_ENGINE_DMAOBJ,
+	NVKM_ENGINE_FAULT,
 	NVKM_ENGINE_FIFO,
 	NVKM_ENGINE_GR,
 	NVKM_ENGINE_IFB,
@@ -146,6 +147,7 @@ struct nvkm_device {
 	struct nvkm_engine *cipher;
 	struct nvkm_disp *disp;
 	struct nvkm_dma *dma;
+	struct nvkm_engine *fault;
 	struct nvkm_fifo *fifo;
 	struct nvkm_gr *gr;
 	struct nvkm_engine *ifb;
@@ -217,6 +219,7 @@ struct nvkm_device_chip {
 	int (*cipher  )(struct nvkm_device *, int idx, struct nvkm_engine **);
 	int (*disp    )(struct nvkm_device *, int idx, struct nvkm_disp **);
 	int (*dma     )(struct nvkm_device *, int idx, struct nvkm_dma **);
+	int (*fault   )(struct nvkm_device *, int idx, struct nvkm_engine **);
 	int (*fifo    )(struct nvkm_device *, int idx, struct nvkm_fifo **);
 	int (*gr      )(struct nvkm_device *, int idx, struct nvkm_gr **);
 	int (*ifb     )(struct nvkm_device *, int idx, struct nvkm_engine **);
