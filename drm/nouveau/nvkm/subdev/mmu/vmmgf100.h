@@ -6,6 +6,8 @@
 struct gf100_vmm {
 	const struct gf100_vmm_func *func;
 	struct nvkm_vmm base;
+
+	struct nvkm_memory *pd;
 };
 
 struct gf100_vmm_func {

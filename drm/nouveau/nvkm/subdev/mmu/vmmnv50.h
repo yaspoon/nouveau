@@ -6,9 +6,17 @@
 struct nv50_vmm {
 	const struct nv50_vmm_func *func;
 	struct nvkm_vmm base;
+
+	struct list_head join;
 };
 
 struct nv50_vmm_func {
+	u16 pd_offset;
+};
+
+struct nv50_vmm_join {
+	struct list_head head;
+	struct nvkm_gpuobj *inst;
 };
 
 int nv50_vmm_new_(const struct nv50_vmm_func *, struct nvkm_mmu *,

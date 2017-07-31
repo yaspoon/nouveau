@@ -71,8 +71,9 @@ const u8 gf100_pte_storage_type_map[256] =
 
 
 static void
-gf100_vm_map_pgt(struct nvkm_gpuobj *pgd, u32 index, struct nvkm_memory *pgt[2])
+gf100_vm_map_pgt(struct nvkm_vmm *base, u32 index, struct nvkm_memory *pgt[2])
 {
+	struct gf100_vmm *vmm = gf100_vmm(base);
 	u32 pde[2] = { 0, 0 };
 
 	if (pgt[0])
@@ -80,10 +81,10 @@ gf100_vm_map_pgt(struct nvkm_gpuobj *pgd, u32 index, struct nvkm_memory *pgt[2])
 	if (pgt[1])
 		pde[0] = 0x00000001 | (nvkm_memory_addr(pgt[1]) >> 8);
 
-	nvkm_kmap(pgd);
-	nvkm_wo32(pgd, (index * 8) + 0, pde[0]);
-	nvkm_wo32(pgd, (index * 8) + 4, pde[1]);
-	nvkm_done(pgd);
+	nvkm_kmap(vmm->pd);
+	nvkm_wo32(vmm->pd, (index * 8) + 0, pde[0]);
+	nvkm_wo32(vmm->pd, (index * 8) + 4, pde[1]);
+	nvkm_done(vmm->pd);
 }
 
 static inline u64
@@ -162,9 +163,9 @@ gf100_vm_unmap(struct nvkm_vma *vma, struct nvkm_memory *pgt, u32 pte, u32 cnt)
 static void
 gf100_vm_flush(struct nvkm_vm *vm)
 {
+	struct gf100_vmm *vmm = gf100_vmm(vm);
 	struct nvkm_mmu *mmu = vm->mmu;
 	struct nvkm_device *device = mmu->subdev.device;
-	struct nvkm_vm_pgd *vpgd;
 	u32 type;
 
 	type = 0x00000001; /* PAGE_ALL */
@@ -172,24 +173,22 @@ gf100_vm_flush(struct nvkm_vm *vm)
 		type |= 0x00000004; /* HUB_ONLY */
 
 	mutex_lock(&mmu->subdev.mutex);
-	list_for_each_entry(vpgd, &vm->pgd_list, head) {
-		/* looks like maybe a "free flush slots" counter, the
-		 * faster you write to 0x100cbc to more it decreases
-		 */
-		nvkm_msec(device, 2000,
-			if (nvkm_rd32(device, 0x100c80) & 0x00ff0000)
-				break;
-		);
+	/* looks like maybe a "free flush slots" counter, the
+	 * faster you write to 0x100cbc to more it decreases
+	 */
+	nvkm_msec(device, 2000,
+		if (nvkm_rd32(device, 0x100c80) & 0x00ff0000)
+			break;
+	);
 
-		nvkm_wr32(device, 0x100cb8, vpgd->obj->addr >> 8);
-		nvkm_wr32(device, 0x100cbc, 0x80000000 | type);
+	nvkm_wr32(device, 0x100cb8, nvkm_memory_addr(vmm->pd) >> 8);
+	nvkm_wr32(device, 0x100cbc, 0x80000000 | type);
 
-		/* wait for flush to be queued? */
-		nvkm_msec(device, 2000,
-			if (nvkm_rd32(device, 0x100c80) & 0x00008000)
-				break;
-		);
-	}
+	/* wait for flush to be queued? */
+	nvkm_msec(device, 2000,
+		if (nvkm_rd32(device, 0x100c80) & 0x00008000)
+			break;
+	);
 	mutex_unlock(&mmu->subdev.mutex);
 }
 

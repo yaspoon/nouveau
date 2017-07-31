@@ -30,8 +30,11 @@
 #include <engine/gr.h>
 
 static void
-nv50_vm_map_pgt(struct nvkm_gpuobj *pgd, u32 pde, struct nvkm_memory *pgt[2])
+nv50_vm_map_pgt(struct nvkm_vmm *base, u32 pde, struct nvkm_memory *pgt[2])
 {
+	struct nv50_vmm *vmm = nv50_vmm(base);
+	struct nv50_vmm_join *join;
+	u32 pdeo = vmm->func->pd_offset + (pde * 8);
 	u64 phys = 0xdeadcafe00000000ULL;
 	u32 coverage = 0;
 
@@ -55,10 +58,12 @@ nv50_vm_map_pgt(struct nvkm_gpuobj *pgd, u32 pde, struct nvkm_memory *pgt[2])
 			phys |= 0x20;
 	}
 
-	nvkm_kmap(pgd);
-	nvkm_wo32(pgd, (pde * 8) + 0, lower_32_bits(phys));
-	nvkm_wo32(pgd, (pde * 8) + 4, upper_32_bits(phys));
-	nvkm_done(pgd);
+	list_for_each_entry(join, &vmm->join, head) {
+		nvkm_kmap(join->inst);
+		nvkm_wo32(join->inst, pdeo + 0, lower_32_bits(phys));
+		nvkm_wo32(join->inst, pdeo + 4, upper_32_bits(phys));
+		nvkm_done(join->inst);
+	}
 }
 
 static inline u64

@@ -94,7 +94,7 @@ nv50_bar_oneinit(struct nvkm_bar *base)
 	if (ret)
 		return ret;
 
-	ret = nvkm_vm_ref(vm, &bar->bar3_vm, bar->pgd);
+	ret = nvkm_vm_ref(vm, &bar->bar3_vm, bar->mem);
 	nvkm_vm_ref(NULL, &vm, NULL);
 	if (ret)
 		return ret;
@@ -123,7 +123,7 @@ nv50_bar_oneinit(struct nvkm_bar *base)
 
 	atomic_inc(&vm->engref[NVKM_SUBDEV_BAR]);
 
-	ret = nvkm_vm_ref(vm, &bar->bar1_vm, bar->pgd);
+	ret = nvkm_vm_ref(vm, &bar->bar1_vm, bar->mem);
 	nvkm_vm_ref(NULL, &vm, NULL);
 	if (ret)
 		return ret;
@@ -174,9 +174,9 @@ nv50_bar_dtor(struct nvkm_bar *base)
 {
 	struct nv50_bar *bar = nv50_bar(base);
 	nvkm_gpuobj_del(&bar->bar1);
-	nvkm_vm_ref(NULL, &bar->bar1_vm, bar->pgd);
+	nvkm_vm_ref(NULL, &bar->bar1_vm, bar->mem);
 	nvkm_gpuobj_del(&bar->bar3);
-	nvkm_vm_ref(NULL, &bar->bar3_vm, bar->pgd);
+	nvkm_vm_ref(NULL, &bar->bar3_vm, bar->mem);
 	nvkm_gpuobj_del(&bar->pgd);
 	nvkm_gpuobj_del(&bar->pad);
 	nvkm_gpuobj_del(&bar->mem);

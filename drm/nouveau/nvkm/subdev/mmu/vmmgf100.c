@@ -21,8 +21,40 @@
  */
 #include "vmmgf100.h"
 
-#include <core/memory.h>
+#include <core/gpuobj.h>
 #include <subdev/fb.h>
+
+static void
+gf100_vmm_part(struct nvkm_vmm *base, struct nvkm_gpuobj *inst)
+{
+	/*XXX: ideally we'd do this, but there's some chicken-and-egg
+	 *     problems with the bootstrapped instmem vmm.
+	 */
+#if 0
+	nvkm_kmap(inst);
+	nvkm_wo32(inst, 0x0200, 0x00000000);
+	nvkm_wo32(inst, 0x0204, 0x00000000);
+	nvkm_wo32(inst, 0x0208, 0x00000000);
+	nvkm_wo32(inst, 0x020c, 0x00000000);
+	nvkm_done(inst);
+#endif
+}
+
+static int
+gf100_vmm_join(struct nvkm_vmm *base, struct nvkm_gpuobj *inst)
+{
+	struct gf100_vmm *vmm = gf100_vmm(base);
+	u64  addr = nvkm_memory_addr(vmm->pd);
+	u64 limit = vmm->base.limit;
+
+	nvkm_kmap(inst);
+	nvkm_wo32(inst, 0x0200, lower_32_bits(addr));
+	nvkm_wo32(inst, 0x0204, upper_32_bits(addr));
+	nvkm_wo32(inst, 0x0208, lower_32_bits(limit));
+	nvkm_wo32(inst, 0x020c, upper_32_bits(limit));
+	nvkm_done(inst);
+	return 0;
+}
 
 static const struct nvkm_vmm_page *
 gf100_vmm_page(struct nvkm_vmm *base)
@@ -47,6 +79,7 @@ static void *
 gf100_vmm_dtor(struct nvkm_vmm *base)
 {
 	struct gf100_vmm *vmm = gf100_vmm(base);
+	nvkm_memory_del(&vmm->pd);
 	return vmm;
 }
 
@@ -54,6 +87,8 @@ static const struct nvkm_vmm_func
 gf100_vmm_ = {
 	.dtor = gf100_vmm_dtor,
 	.page = gf100_vmm_page,
+	.join = gf100_vmm_join,
+	.part = gf100_vmm_part,
 };
 
 int
@@ -73,6 +108,12 @@ gf100_vmm_new_(const struct gf100_vmm_func *func, struct nvkm_mmu *mmu,
 	*pvmm = &vmm->base;
 
 	ret = nvkm_vmm_ctor(&gf100_vmm_, mmu, 40, addr, size, key, &vmm->base);
+	if (ret)
+		return ret;
+
+	ret = nvkm_memory_new(mmu->subdev.device, NVKM_MEM_TARGET_INST,
+			      (vmm->base.lpde + 1) * 8, 0x1000, true,
+			      &vmm->pd);
 	if (ret)
 		return ret;
 

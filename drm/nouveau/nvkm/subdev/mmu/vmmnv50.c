@@ -21,6 +21,37 @@
  */
 #include "vmmnv50.h"
 
+static void
+nv50_vmm_part(struct nvkm_vmm *base, struct nvkm_gpuobj *inst)
+{
+	struct nv50_vmm *vmm = nv50_vmm(base);
+	struct nv50_vmm_join *join;
+
+	list_for_each_entry(join, &vmm->join, head) {
+		if (join->inst == inst) {
+			list_del(&join->head);
+			kfree(join);
+			return;
+		}
+	}
+
+	WARN_ON(1);
+}
+
+static int
+nv50_vmm_join(struct nvkm_vmm *base, struct nvkm_gpuobj *inst)
+{
+	struct nv50_vmm *vmm = nv50_vmm(base);
+	struct nv50_vmm_join *join;
+
+	if (!(join = kzalloc(sizeof(*join), GFP_KERNEL)))
+		return -ENOMEM;
+
+	join->inst = inst;
+	list_add_tail(&join->head, &vmm->join);
+	return 0;
+}
+
 static const struct nvkm_vmm_page *
 nv50_vmm_page(struct nvkm_vmm *base)
 {
@@ -45,6 +76,8 @@ nv50_vmm_ = {
 	.dtor = nv50_vmm_dtor,
 	.page = nv50_vmm_page,
 	.page_block = 1 << 29,
+	.join = nv50_vmm_join,
+	.part = nv50_vmm_part,
 };
 
 int
@@ -61,6 +94,7 @@ nv50_vmm_new_(const struct nv50_vmm_func *func, struct nvkm_mmu *mmu,
 	if (!(vmm = kzalloc(sizeof(*vmm), GFP_KERNEL)))
 		return -ENOMEM;
 	vmm->func = func;
+	INIT_LIST_HEAD(&vmm->join);
 	*pvmm = &vmm->base;
 
 	ret = nvkm_vmm_ctor(&nv50_vmm_, mmu, 40, addr, size, key, &vmm->base);
@@ -72,6 +106,7 @@ nv50_vmm_new_(const struct nv50_vmm_func *func, struct nvkm_mmu *mmu,
 
 static const struct nv50_vmm_func
 nv50_vmm = {
+	.pd_offset = 0x1400,
 };
 
 static int

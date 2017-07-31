@@ -20,7 +20,7 @@ struct nvkm_mmu_func {
 	u8  spg_shift;
 	u8  lpg_shift;
 
-	void (*map_pgt)(struct nvkm_gpuobj *pgd, u32 pde,
+	void (*map_pgt)(struct nvkm_vmm *, u32 pde,
 			struct nvkm_memory *pgt[2]);
 	void (*map)(struct nvkm_vma *, struct nvkm_memory *,
 		    struct nvkm_mem *, u32 pte, u32 cnt,

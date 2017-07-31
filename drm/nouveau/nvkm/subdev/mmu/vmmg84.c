@@ -23,6 +23,7 @@
 
 static const struct nv50_vmm_func
 g84_vmm = {
+	.pd_offset = 0x200,
 };
 
 static int

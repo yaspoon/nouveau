@@ -50,7 +50,6 @@ nvkm_vmm_ctor(const struct nvkm_vmm_func *func, struct nvkm_mmu *mmu,
 		return -EINVAL;
 
 	__mutex_init(&vmm->mutex, "&vmm->mutex", key ? key : &_key);
-	INIT_LIST_HEAD(&vmm->pgd_list);
 	kref_init(&vmm->refcount);
 	vmm->fpde = vmm->start >> (mmu->func->pgt_bits + 12);
 	vmm->lpde = vmm->limit >> (mmu->func->pgt_bits + 12);

@@ -13,6 +13,9 @@ struct nvkm_vmm_func {
 
 	const struct nvkm_vmm_page *(*page)(struct nvkm_vmm *);
 	u64 page_block;
+
+	int (*join)(struct nvkm_vmm *, struct nvkm_gpuobj *inst);
+	void (*part)(struct nvkm_vmm *, struct nvkm_gpuobj *inst);
 };
 
 int nvkm_vmm_ctor(const struct nvkm_vmm_func *, struct nvkm_mmu *,

@@ -5,7 +5,7 @@
 
 struct gf100_bar_vm {
 	struct nvkm_memory *mem;
-	struct nvkm_gpuobj *pgd;
+	struct nvkm_gpuobj *inst;
 	struct nvkm_vm *vm;
 };
 
