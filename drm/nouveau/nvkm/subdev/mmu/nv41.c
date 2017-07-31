@@ -22,6 +22,7 @@
  * Authors: Ben Skeggs
  */
 #include "nv04.h"
+#include "vmmnv04.h"
 
 #include <core/gpuobj.h>
 #include <core/option.h>
@@ -92,15 +93,10 @@ nv41_mmu_oneinit(struct nvkm_mmu *base)
 	struct nvkm_device *device = mmu->base.subdev.device;
 	int ret;
 
-	ret = nvkm_vm_create(&mmu->base, 0, NV41_GART_SIZE, 0, 4096, NULL,
-			     &mmu->vm);
-	if (ret)
-		return ret;
-
 	ret = nvkm_memory_new(device, NVKM_MEM_TARGET_INST,
 			      (NV41_GART_SIZE / NV41_GART_PAGE) * 4, 16, true,
-			      &mmu->vm->pgt[0].mem[0]);
-	mmu->vm->pgt[0].refcount[0] = 1;
+			      &mmu->base.vmm->pgt[0].mem[0]);
+	mmu->base.vmm->pgt[0].refcount[0] = 1;
 	return ret;
 }
 
@@ -109,10 +105,18 @@ nv41_mmu_init(struct nvkm_mmu *base)
 {
 	struct nv04_mmu *mmu = nv04_mmu(base);
 	struct nvkm_device *device = mmu->base.subdev.device;
-	struct nvkm_memory *dma = mmu->vm->pgt[0].mem[0];
+	struct nvkm_memory *dma = mmu->base.vmm->pgt[0].mem[0];
 	nvkm_wr32(device, 0x100800, 0x00000002 | nvkm_memory_addr(dma));
 	nvkm_mask(device, 0x10008c, 0x00000100, 0x00000100);
 	nvkm_wr32(device, 0x100820, 0x00000000);
+}
+
+static int
+nv41_mmu_uvmm(struct nvkm_mmu *base, int i, const struct nvkm_vmm_user **puvmm)
+{
+	if (i == 0)
+		*puvmm = &nv41_vmm_user;
+	return 1;
 }
 
 static const struct nvkm_mmu_func
@@ -128,6 +132,8 @@ nv41_mmu = {
 	.map_sg = nv41_vm_map_sg,
 	.unmap = nv41_vm_unmap,
 	.flush = nv41_vm_flush,
+	.uvmm = nv41_mmu_uvmm,
+	.vmm_global = true,
 };
 
 int
