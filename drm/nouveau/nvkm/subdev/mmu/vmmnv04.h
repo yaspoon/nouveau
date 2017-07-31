@@ -14,4 +14,5 @@ const struct nvkm_vmm_page *nv04_vmm_page(struct nvkm_vmm *);
 
 extern const struct nvkm_vmm_user nv04_vmm_user;
 extern const struct nvkm_vmm_user nv41_vmm_user;
+extern const struct nvkm_vmm_user nv44_vmm_user;
 #endif

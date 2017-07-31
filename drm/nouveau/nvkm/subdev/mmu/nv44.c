@@ -22,6 +22,7 @@
  * Authors: Ben Skeggs
  */
 #include "nv04.h"
+#include "vmmnv04.h"
 
 #include <core/gpuobj.h>
 #include <core/option.h>
@@ -172,16 +173,11 @@ nv44_mmu_oneinit(struct nvkm_mmu *base)
 		mmu->null = 0;
 	}
 
-	ret = nvkm_vm_create(&mmu->base, 0, NV44_GART_SIZE, 0, 4096, NULL,
-			     &mmu->vm);
-	if (ret)
-		return ret;
-
 	ret = nvkm_memory_new(device, NVKM_MEM_TARGET_INST,
 			      (NV44_GART_SIZE / NV44_GART_PAGE) * 4,
 			      512 * 1024, true,
-			      &mmu->vm->pgt[0].mem[0]);
-	mmu->vm->pgt[0].refcount[0] = 1;
+			      &mmu->base.vmm->pgt[0].mem[0]);
+	mmu->base.vmm->pgt[0].refcount[0] = 1;
 	return ret;
 }
 
@@ -190,7 +186,7 @@ nv44_mmu_init(struct nvkm_mmu *base)
 {
 	struct nv04_mmu *mmu = nv04_mmu(base);
 	struct nvkm_device *device = mmu->base.subdev.device;
-	struct nvkm_memory *gart = mmu->vm->pgt[0].mem[0];
+	struct nvkm_memory *gart = mmu->base.vmm->pgt[0].mem[0];
 	u32 addr;
 
 	/* calculate vram address of this PRAMIN block, object must be
@@ -210,6 +206,14 @@ nv44_mmu_init(struct nvkm_mmu *base)
 	nvkm_wr32(device, 0x100800, addr | 0x00000010);
 }
 
+static int
+nv44_mmu_uvmm(struct nvkm_mmu *base, int i, const struct nvkm_vmm_user **puvmm)
+{
+	if (i == 0)
+		*puvmm = &nv44_vmm_user;
+	return 1;
+}
+
 static const struct nvkm_mmu_func
 nv44_mmu = {
 	.dtor = nv04_mmu_dtor,
@@ -223,6 +227,8 @@ nv44_mmu = {
 	.map_sg = nv44_vm_map_sg,
 	.unmap = nv44_vm_unmap,
 	.flush = nv44_vm_flush,
+	.uvmm = nv44_mmu_uvmm,
+	.vmm_global = true,
 };
 
 int
