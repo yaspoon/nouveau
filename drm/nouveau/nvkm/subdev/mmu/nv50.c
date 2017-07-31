@@ -22,6 +22,7 @@
  * Authors: Ben Skeggs
  */
 #include "nv50.h"
+#include "vmmnv50.h"
 
 #include <core/gpuobj.h>
 #include <subdev/fb.h>
@@ -199,14 +200,12 @@ nv50_vm_flush(struct nvkm_vm *vm)
 }
 
 static int
-nv50_vm_create(struct nvkm_mmu *mmu, u64 offset, u64 length, u64 mm_offset,
-	       struct lock_class_key *key, struct nvkm_vm **pvm)
+nv50_mmu_uvmm(struct nvkm_mmu *base, int i, const struct nvkm_vmm_user **puvmm)
 {
-	u32 block = (1 << (mmu->func->pgt_bits + 12));
-	if (block > length)
-		block = length;
-
-	return nvkm_vm_create(mmu, offset, length, mm_offset, block, key, pvm);
+	struct nv50_mmu *mmu = nv50_mmu(base);
+	if (i == 0)
+		*puvmm = mmu->func->uvmm;
+	return 1;
 }
 
 static void *
@@ -223,12 +222,12 @@ nv50_mmu_ = {
 	.pgt_bits  = 29 - 12,
 	.spg_shift = 12,
 	.lpg_shift = 16,
-	.create = nv50_vm_create,
 	.map_pgt = nv50_vm_map_pgt,
 	.map = nv50_vm_map,
 	.map_sg = nv50_vm_map_sg,
 	.unmap = nv50_vm_unmap,
 	.flush = nv50_vm_flush,
+	.uvmm = nv50_mmu_uvmm,
 };
 
 int
@@ -248,6 +247,7 @@ nv50_mmu_new_(const struct nv50_mmu_func *func, struct nvkm_device *device,
 
 static const struct nv50_mmu_func
 nv50_mmu = {
+	.uvmm = &nv50_vmm_user,
 };
 
 int

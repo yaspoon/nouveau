@@ -9,6 +9,7 @@ struct nv50_mmu {
 };
 
 struct nv50_mmu_func {
+	const struct nvkm_vmm_user *uvmm;
 };
 
 int nv50_mmu_new_(const struct nv50_mmu_func *, struct nvkm_device *, int,

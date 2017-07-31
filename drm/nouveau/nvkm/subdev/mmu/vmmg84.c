@@ -19,16 +19,20 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
-#include "nv50.h"
 #include "vmmnv50.h"
 
-static const struct nv50_mmu_func
-g84_mmu = {
-	.uvmm = &g84_vmm_user,
+static const struct nv50_vmm_func
+g84_vmm = {
 };
 
-int
-g84_mmu_new(struct nvkm_device *device, int index, struct nvkm_mmu **pmmu)
+static int
+g84_vmm_new(struct nvkm_mmu *mmu, u64 addr, u64 size, void *argv, u32 argc,
+	    struct lock_class_key *key, struct nvkm_vmm **pvmm)
 {
-	return nv50_mmu_new_(&g84_mmu, device, index, pmmu);
+	return nv50_vmm_new_(&g84_vmm, mmu, addr, size, argv, argc, key, pvmm);
 }
+
+const struct nvkm_vmm_user
+g84_vmm_user = {
+	.ctor = g84_vmm_new,
+};
