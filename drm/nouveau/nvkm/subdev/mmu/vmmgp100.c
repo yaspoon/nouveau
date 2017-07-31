@@ -19,24 +19,20 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
-#include "gf100.h"
 #include "vmmgf100.h"
 
-static int
-gp100_mmu_uvmm(struct gf100_mmu *mmu, int i, const struct nvkm_vmm_user **puvmm)
-{
-	if (i == 0)
-		*puvmm = &gp100_vmm_user;
-	return 1;
-}
-
-static const struct gf100_mmu_func
-gp100_mmu = {
-	.uvmm = gp100_mmu_uvmm,
+static const struct gf100_vmm_func
+gp100_vmm = {
 };
 
-int
-gp100_mmu_new(struct nvkm_device *device, int index, struct nvkm_mmu **pmmu)
+static int
+gp100_vmm_new(struct nvkm_mmu *mmu, u64 addr, u64 size, void *argv, u32 argc,
+	      struct lock_class_key *key, struct nvkm_vmm **pvmm)
 {
-	return gf100_mmu_new_(&gp100_mmu, device, index, pmmu);
+	return gf100_vmm_new_(&gp100_vmm, mmu, addr, size, argv, argc, key, pvmm);
 }
+
+const struct nvkm_vmm_user
+gp100_vmm_user = {
+	.ctor = gp100_vmm_new,
+};

@@ -20,9 +20,6 @@ struct nvkm_mmu_func {
 	u8  spg_shift;
 	u8  lpg_shift;
 
-	int  (*create)(struct nvkm_mmu *, u64 offset, u64 length, u64 mm_offset,
-		       struct lock_class_key *, struct nvkm_vm **);
-
 	void (*map_pgt)(struct nvkm_gpuobj *pgd, u32 pde,
 			struct nvkm_memory *pgt[2]);
 	void (*map)(struct nvkm_vma *, struct nvkm_memory *,
@@ -38,7 +35,4 @@ struct nvkm_mmu_func {
 
 	bool vmm_global;
 };
-
-int nvkm_vm_create(struct nvkm_mmu *, u64, u64, u64, u32,
-		   struct lock_class_key *, struct nvkm_vm **);
 #endif

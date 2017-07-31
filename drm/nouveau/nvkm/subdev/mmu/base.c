@@ -363,52 +363,21 @@ nvkm_vm_boot(struct nvkm_vm *vm, u64 size)
 }
 
 int
-nvkm_vm_create(struct nvkm_mmu *mmu, u64 offset, u64 length, u64 mm_offset,
-	       u32 block, struct lock_class_key *key, struct nvkm_vm **pvm)
-{
-	struct nvkm_vmm_func func = { .page_block = block };
-	struct nvkm_vm *vm;
-	int ret;
-
-	vm = kzalloc(sizeof(*vm), GFP_KERNEL);
-	if (!vm)
-		return -ENOMEM;
-
-	ret = nvkm_vmm_ctor(&func, mmu, order_base_2(mmu->limit),
-			    mm_offset, offset + length - mm_offset, key, vm);
-	vm->func = NULL;
-	if (ret) {
-		kfree(vm);
-		return ret;
-	}
-
-	*pvm = vm;
-
-	return 0;
-}
-
-int
 nvkm_vm_new(struct nvkm_device *device, u64 offset, u64 length, u64 mm_offset,
 	    struct lock_class_key *key, struct nvkm_vm **pvm)
 {
+	const struct nvkm_vmm_user *uvmm = NULL;
 	struct nvkm_mmu *mmu = device->mmu;
+	int ret;
 
+	mmu->func->uvmm(mmu, 0, &uvmm);
 	*pvm = NULL;
-	if (mmu->func->uvmm) {
-		const struct nvkm_vmm_user *uvmm;
-		int ret;
 
-		mmu->func->uvmm(mmu, 0, &uvmm);
-		ret = uvmm->ctor(mmu, mm_offset, offset + length - mm_offset,
-				 NULL, 0, key, pvm);
-		if (ret)
-			nvkm_vm_ref(NULL, pvm, NULL);
-		return ret;
-	}
-
-	if (!mmu->func->create)
-		return -EINVAL;
-	return mmu->func->create(mmu, offset, length, mm_offset, key, pvm);
+	ret = uvmm->ctor(mmu, mm_offset, offset + length - mm_offset,
+			 NULL, 0, key, pvm);
+	if (ret)
+		nvkm_vm_ref(NULL, pvm, NULL);
+	return ret;
 }
 
 static int

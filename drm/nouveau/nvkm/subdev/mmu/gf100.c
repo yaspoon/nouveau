@@ -22,6 +22,7 @@
  * Authors: Ben Skeggs
  */
 #include "gf100.h"
+#include "vmmgf100.h"
 
 #include <subdev/fb.h>
 #include <subdev/ltc.h>
@@ -193,10 +194,15 @@ gf100_vm_flush(struct nvkm_vm *vm)
 }
 
 static int
-gf100_vm_create(struct nvkm_mmu *mmu, u64 offset, u64 length, u64 mm_offset,
-		struct lock_class_key *key, struct nvkm_vm **pvm)
+gf100_mmu_uvmm(struct nvkm_mmu *base, int i, const struct nvkm_vmm_user **puvmm)
 {
-	return nvkm_vm_create(mmu, offset, length, mm_offset, 4096, key, pvm);
+	struct gf100_mmu *mmu = gf100_mmu(base);
+	if (!mmu->func->uvmm) {
+		if (i == 0)
+			*puvmm = &gf100_vmm_user;
+		return 1;
+	}
+	return mmu->func->uvmm(mmu, i, puvmm);
 }
 
 static void *
@@ -213,12 +219,12 @@ gf100_mmu_ = {
 	.pgt_bits  = 27 - 12,
 	.spg_shift = 12,
 	.lpg_shift = 17,
-	.create = gf100_vm_create,
 	.map_pgt = gf100_vm_map_pgt,
 	.map = gf100_vm_map,
 	.map_sg = gf100_vm_map_sg,
 	.unmap = gf100_vm_unmap,
 	.flush = gf100_vm_flush,
+	.uvmm = gf100_mmu_uvmm,
 };
 
 int

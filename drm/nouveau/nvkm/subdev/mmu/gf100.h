@@ -9,6 +9,7 @@ struct gf100_mmu {
 };
 
 struct gf100_mmu_func {
+	int (*uvmm)(struct gf100_mmu *, int, const struct nvkm_vmm_user **);
 };
 
 int gf100_mmu_new_(const struct gf100_mmu_func *, struct nvkm_device *, int,
