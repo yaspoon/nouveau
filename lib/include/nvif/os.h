@@ -811,6 +811,7 @@ struct device_driver {
 struct device {
 	struct device_driver *driver;
 	char name[64];
+	void *pm_domain;
 };
 
 #define dev_name(d) (d)->name
@@ -1261,6 +1262,21 @@ void release_firmware(const struct firmware *);
 /******************************************************************************
  * workqueues
  *****************************************************************************/
+struct workqueue_struct {
+};
+
+static inline struct workqueue_struct *
+create_singlethread_workqueue(const char *name)
+{
+	return (void *)1;
+}
+
+static inline void
+destroy_workqueue(struct workqueue_struct *wq)
+{
+	assert(wq);
+}
+
 struct work_struct {
 	union {
 		void (*func)(struct work_struct *);
@@ -1275,6 +1291,12 @@ struct work_struct {
 
 bool nvos_work_init(void (*)(void *), void *, struct nvos_work **);
 void nvos_work_fini(struct nvos_work **);
+
+static inline void
+queue_work(struct workqueue_struct *wq, struct work_struct *work)
+{
+	schedule_work(work);
+}
 
 /******************************************************************************
  * waitqueues
@@ -1313,6 +1335,7 @@ typedef struct __wait_queue_head {
  * completion
  *****************************************************************************/
 struct completion {
+	unsigned int done;
 };
 
 #define DECLARE_COMPLETION_ONSTACK(c)                                          \
@@ -1321,6 +1344,7 @@ struct completion {
 static inline void
 init_completion(struct completion *c)
 {
+	c->done = 0;
 }
 
 static inline void
@@ -1331,17 +1355,21 @@ reinit_completion(struct completion *c)
 static inline unsigned long
 wait_for_completion_timeout(struct completion *c, unsigned long timeout)
 {
-	return 0;
+	while (!c->done)
+		sched_yield();
+	return 1;
 }
 
 static inline void
 complete(struct completion *c)
 {
+	c->done = 1;
 }
 
 static inline void
 complete_all(struct completion *c)
 {
+	complete(c);
 }
 
 /******************************************************************************
